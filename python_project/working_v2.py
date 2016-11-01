@@ -42,21 +42,22 @@ HELP
 """
 
 #To use this script matplotlib and Biopython need to be installed
+
 import sys
 import os
 import re
-#import argparse
+import argparse
 #import matplotlib.pyplot as plt
 from Bio import SeqIO
 #from Bio.SeqUtils import GC
-#from Bio.Alphabet import IUPAC
-
-#Biopython methods to use
-#Bio.SeqIO.to_dict()
+from Bio.Alphabet import IUPAC
 
 #############################################################################################
 
+
 class Assembly(object):
+
+
 	"""
 	This object contains the attributes of the path to the input assembly fasta file and the 
 	input mapping file of contig assignment to bins (output by hand or from binning software)
@@ -64,14 +65,30 @@ class Assembly(object):
 	It includes a method extract_bins for extracting the sequences of contigs associated
 	with each bin.
 	"""
-	def __init__(self, fasta_file, binning_file):
+
+
+	def __init__(self, fasta_file, binning_file, output_folder):
+
+		"""
+		fasta_file = the path to the metagenomic assembly fasta file
+		binning_file = the path to the mapping file of contigs to bins
+		output_folder = path to a directory for bins to be output
+		(if not already existing it will be created)
+
+		The fasta file is parsed into biopython SeqRecord object in 
+		a SEQIO dictionary.
+
+		The binning file is also parsed into a dictionary of bin
+		numbers containing a list of contig names.
+		"""
 
 		if not os.path.exists(fasta_file):
 			raise IOError("This file does not exist")
 
 		handle = open(fasta_file,'rU')
-		record_dict = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
+		record_dict = SeqIO.to_dict(SeqIO.parse(handle, "fasta", IUPAC.unambiguous_dna))
 		self.fasta_file = record_dict
+		handle.close()
 
 		if not os.path.exists(binning_file):
 			raise IOError("This file does not exist")
@@ -87,57 +104,60 @@ class Assembly(object):
 				parsed_bin_file[bin_number] = []
 				parsed_bin_file[bin_number].append(contig)
 		self.binning_file = parsed_bin_file
-	
-	def extract_bins(self):
-		pass
+		handle.close()
 		
+		self.output_folder = output_folder
+		if not os.path.exists(output_folder):
+   				os.makedirs(output_folder)
 
+	def extract_bins(self):
 
-trial = Assembly("test.fasta", "mapping.txt")
-print trial.fasta_file
-print trial.binning_file
+		"""
+		This method will use the parsed metagenome assembly
+		and mapping file to output folders for every bin, each 
+		containing a fasta file with contigs mapped to it.
+		"""
 
+		for genome_bin in self.binning_file:
+			if not os.path.exists(self.output_folder + "/" + ("bin_%i" % (genome_bin))):
+				os.makedirs(self.output_folder + "/" + ("bin_%i" % (genome_bin)))
 
+		bin_mapping = self.binning_file
+		seq_dictionary = self.fasta_file
+
+		for genome_bin in bin_mapping.keys():
+			output_file = self.output_folder + "/" + ("bin_%i" % (genome_bin)) + "/" + ("bin_%i" % (genome_bin)) + ".fasta"
+			contig_names = bin_mapping[genome_bin]
+			record = []
+			for name in contig_names:
+				record.append(seq_dictionary[name])
+			SeqIO.write(record, output_file, "fasta")
+			print "%i folder made and contigs extracted" % (genome_bin)
+		print "Bin extraction complete"
 
 
 #class Bin(object):
-	#def __init__(self, bin_number, contigs):
-	#	self.bin_number = bin_number
-	#	self.contigs = contigs
-	#	self.num_contigs = num_contigs
-	#	self.GC_content_perc = GC_content_perc
-	#	self.bin_length_bp = bin_length_bp
-	#	self.N50 = N50
-		#self.completness = completness
-		#self.redundancy = redundancy
-		#self.best_bin = best_bin
-
-#class Contig(object):
-	#def __init__(self):
-	#	pass
-
-#class Checkm(Bin):
-	#This will be added at a later point to calculate redundancy and completness of each bin
 #	def __init__(self):
-#		pass
+#		self.assembly = Assembly()
+#		self.contigs = contigs
 
 #############################################################################################
 
-#parser = argparse.ArgumentParser(prog='find_best_genomebins.py', 
-#	formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
-#	description='Generate descriptive information and fasta files for genome bins from an \
-#	assembly fasta file and associated binning output (contigs mapped to bin numbers)')
+parser = argparse.ArgumentParser(prog='working.py', 
+	formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+	description='Generate descriptive information and fasta files for genome bins from an \
+	assembly fasta file and associated binning output (contigs mapped to bin numbers)')
 
-#parser.add_argument('-assem', '--assembly_path', required=True, help = 'Path to the metagenome assembly file in \
-#	fasta format with the extension .fna or .fasta')
+parser.add_argument('-assem', '--assembly_path', required=True, help = 'Path to the metagenome assembly file in \
+	fasta format with the extension .fna or .fasta')
 
-#parser.add_argument('-map', '--contig_to_bin_map_path', required=True, help = 'Path to the mapping file containing contigs with \
-#	associated bin assignments in the format "contig_name, bin_#", with the "bin_#" as an \
-#	integer. The contig and bin can be either comma or tab seperated. It should be a text \
-#	file with either a .txt extension or no extension')
+parser.add_argument('-map', '--contig_to_bin_map_path', required=True, help = 'Path to the mapping file containing contigs with \
+	associated bin assignments in the format "contig_name, bin_#", with the "bin_#" as an \
+	integer. The contig and bin can be either comma or tab seperated. It should be a text \
+	file with either a .txt extension or no extension')
 
-#parser.add_argument('-o', '--output_folder', required=True, help = 'Completness threshold a genome bin has to pass to be \
-#	output and described. As a proportion (float from and including 0 to 1)')
+parser.add_argument('-o', '--output_folder', required=True, help = 'Completness threshold a genome bin has to pass to be \
+	output and described. As a proportion (float from and including 0 to 1)')
 
 #parser.add_argument('--compl', type=float, default=0.7, help = 'Completness threshold a genome bin has to pass to be \
 #	output and described. As a proportion (float from and including 0 to 1)')
@@ -150,17 +170,35 @@ print trial.binning_file
 
 #parser.add_argument('--t', type=int, default=1, help = 'Number of threads for checkM to use when calculated the \
 #	completness and redundancy of each bin')
-#args = parser.parse_args()
 
-#print "The path given for the assembly: " + args.assembly_path
-#print "The path given for the mapping file: " + args.map_path
+args = parser.parse_args()
+
+print "The path given for the assembly: " + args.assembly_path
+print "The path given for the mapping file: " + args.contig_to_bin_map_path
 #print "The completness threshold is " + args.compl
 #print "The redundancy threshold is: " + args.redun
 #print "All bins will be output: " + args.all
 #print "Number of threads used by CheckM: " + args.t
-#print "Files will be output in this directory: " + args.o
+print "Files will be output in this directory: " + args.output_folder
 #parser.print_help()
 
 #############################################################################################
 
 #Acutal implementation
+
+#log_file = open((args.output_folder + "/" + "log.txt"), "w")
+sequences = Assembly(args.assembly_path, args.contig_to_bin_map_path, args.output_folder)
+sequences.extract_bins()
+bins = Bin(args.output_folder)
+#log_file.close()
+
+
+
+
+
+
+
+
+
+
+
